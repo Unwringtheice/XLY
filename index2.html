@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>图册</title>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+      }
+
+      body {
+        background: #222;
+        overflow: hidden;
+        user-select: none;
+        touch-action: none;
+      }
+
+      .perspective {
+        perspective: 600px;
+      }
+
+      .wrap {
+        width: 135px;
+        height: 240px;
+        margin: 100px auto;
+        position: relative;
+        transform: rotateX(-20deg) rotateY(0deg);
+        transform-style: preserve-3d;
+      }
+
+      @media (max-width: 768px) {
+        .wrap {
+          width: 100px;
+          height: 180px;
+          margin: 50px auto;
+        }
+      }
+
+      .wrap img {
+        display: block;
+        position: absolute;
+        width: 100%;
+        height: 100%;
+        background: transparent;
+        box-shadow: 0 0 4px #fff;
+        border-radius: 5px;
+      }
+
+      .wrap p {
+        width: 1200px;
+        height: 1200px;
+        background: radial-gradient(
+          circle,
+          rgba(122, 122, 122, 0.5),
+          rgba(0, 0, 0, 0)
+        );
+        position: absolute;
+        border-radius: 50%;
+        left: 50%;
+        top: 100%;
+        margin-left: -600px;
+        margin-top: -600px;
+        transform: rotateX(90deg);
+      }
+    </style>
+  </head>
+  <body>
+    <div class="perspective">
+      <div class="wrap" id="imgwrap"><p></p></div>
+    </div>
+
+    <script>
+      const imgWrap = document.getElementById("imgwrap");
+
+      // 图片列表
+      const imgList = [
+        "01.jpg", "02.jpg", "03.jpg", "04.jpg", "05.jpg", "06.jpg",
+        "07.jpg", "08.jpg", "09.jpg", "10.jpg", "11.jpg", "12.jpg",
+        "13.jpg", "14.png", "15.jpg", "16.jpg", "17.jpg", "18.jpg",
+        "19.jpg", "20.jpg", "21.jpg", "22.jpg", "23.jpg", "24.jpg",
+        "25.jpg", "26.jpg", "27.jpg", "28.jpg", "29.jpg", "30.jpg"
+      ];
+
+      const layerOffsets = [
+        { class: "f1", y: 0, angleOffset: 0 },
+        { class: "f2", y: 240, angleOffset: 90 },
+        { class: "f3", y: 480, angleOffset: 180 }
+      ];
+
+      // 创建所有图片
+      layerOffsets.forEach(({ class: cls, y, angleOffset }) => {
+        imgList.forEach((src) => {
+          const img = document.createElement("img");
+          img.src = "img/" + src;
+          img.className = cls;
+          imgWrap.appendChild(img);
+        });
+      });
+
+      // 设置角度和偏移
+      window.onload = function () {
+        const len = imgList.length;
+        const deg = 360 / len;
+
+        layerOffsets.forEach(({ class: cls, y, angleOffset }) => {
+          const imgs = document.getElementsByClassName(cls);
+          Array.from(imgs).forEach((img, i) => {
+            const angle = deg * i + angleOffset;
+            img.style.transform = `rotateY(${angle}deg) translateZ(645.75px) translateY(${y}px)`;
+            img.style.transition = `1s ${(len - i) * 0.05}s`;
+          });
+        });
+      };
+
+      // 旋转控制
+      let rotX = -20, rotY = 0;
+      let isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+
+      function updateRotation(deltaX, deltaY) {
+        rotX -= deltaY * 0.2;
+        rotY += deltaX * 0.1;
+        imgWrap.style.transform = `rotateX(${rotX}deg) rotateY(${rotY}deg)`;
+      }
+
+      // 鼠标控制
+      document.onmousedown = function (e) {
+        let lastX = e.clientX, lastY = e.clientY;
+
+        document.onmousemove = function (e) {
+          const deltaX = e.clientX - lastX;
+          const deltaY = e.clientY - lastY;
+          updateRotation(deltaX, deltaY);
+          lastX = e.clientX;
+          lastY = e.clientY;
+        };
+
+        document.onmouseup = function () {
+          document.onmousemove = null;
+        };
+      };
+
+      // 触摸控制
+      let touchStartX = 0, touchStartY = 0;
+
+      document.addEventListener('touchstart', function(e) {
+        touchStartX = e.touches[0].clientX;
+        touchStartY = e.touches[0].clientY;
+      }, { passive: false });
+
+      document.addEventListener('touchmove', function(e) {
+        e.preventDefault();
+        const touchX = e.touches[0].clientX;
+        const touchY = e.touches[0].clientY;
+        
+        const deltaX = touchX - touchStartX;
+        const deltaY = touchY - touchStartY;
+        
+        updateRotation(deltaX, deltaY);
+        
+        touchStartX = touchX;
+        touchStartY = touchY;
+      }, { passive: false });
+    </script>
+  </body>
+</html>

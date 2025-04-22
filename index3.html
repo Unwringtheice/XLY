@@ -1,0 +1,520 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>樱花3D相册</title>
+    <script src="js/jquery.min.js"></script>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+      }
+
+      html, body {
+        width: 100%;
+        height: 100%;
+        margin: 0;
+        padding: 0;
+        overflow: hidden;
+        background: #000;
+        user-select: none;
+      }
+
+      .container {
+        width: 100%;
+        height: 100%;
+        margin: 0;
+        padding: 0;
+        background-color: rgba(0, 0, 0, 0.8);
+        position: relative;
+      }
+
+      .perspective {
+        perspective: 800px;
+        position: absolute;
+        width: 100%;
+        height: 100%;
+        z-index: 2;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+      }
+
+      .wrap {
+        width: 150px;
+        height: 250px;
+        position: relative;
+        transform: rotateX(-20deg) rotateY(0deg);
+        transform-style: preserve-3d;
+      }
+
+      .wrap img {
+        display: block;
+        position: absolute;
+        width: 100%;
+        height: 100%;
+        background: transparent;
+        box-shadow: 0 0 8px rgba(255, 255, 255, 0.3);
+        border-radius: 8px;
+        transition: all 0.5s ease;
+      }
+
+      .wrap img:hover {
+        box-shadow: 0 0 15px rgba(255, 255, 255, 0.5);
+        transform: scale(1.05);
+      }
+
+      .wrap p {
+        width: 1500px;
+        height: 1500px;
+        background: radial-gradient(
+          circle,
+          rgba(255, 255, 255, 0.1),
+          rgba(0, 0, 0, 0)
+        );
+        position: absolute;
+        border-radius: 50%;
+        left: 50%;
+        top: 100%;
+        margin-left: -750px;
+        margin-top: -750px;
+        transform: rotateX(90deg);
+      }
+
+      .box {
+        position: absolute;
+        width: 100%;
+        height: 100%;
+        z-index: 1;
+      }
+    </style>
+  </head>
+
+  <body>
+    <div id="jsi-cherry-container" class="container">
+      <div class="box">
+        <ul class="minbox">
+          <li></li>
+          <li></li>
+          <li></li>
+          <li></li>
+          <li></li>
+          <li></li>
+        </ul>
+        <ol class="maxbox">
+          <li></li>
+          <li></li>
+          <li></li>
+          <li></li>
+          <li></li>
+          <li></li>
+        </ol>
+      </div>
+    </div>
+
+    <div class="perspective">
+      <div class="wrap" id="imgwrap"><p></p></div>
+    </div>
+
+    <script>
+      // 樱花效果代码
+      var RENDERER = {
+        INIT_CHERRY_BLOSSOM_COUNT: 40,  // 增加樱花数量
+        MAX_ADDING_INTERVAL: 8,         // 调整添加间隔
+
+        init: function () {
+          this.setParameters();
+          this.reconstructMethods();
+          this.createCherries();
+          this.render();
+          if (
+            navigator.userAgent.match(
+              /(phone|pod|iPhone|iPod|ios|Android|Mobile|BlackBerry|IEMobile|MQQBrowser|JUC|Fennec|wOSBrowser|BrowserNG|WebOS|Symbian|Windows Phone)/i
+            )
+          ) {
+            var box = document.querySelectorAll(".box")[0];
+            console.log(box, "移动端");
+            box.style.marginTop = "65%";
+          }
+        },
+        setParameters: function () {
+          this.$container = $("#jsi-cherry-container");
+          this.width = this.$container.width();
+          this.height = this.$container.height();
+          this.context = $("<canvas />")
+            .attr({ width: this.width, height: this.height })
+            .appendTo(this.$container)
+            .get(0)
+            .getContext("2d");
+          this.cherries = [];
+          this.maxAddingInterval = Math.round(
+            (this.MAX_ADDING_INTERVAL * 1000) / this.width
+          );
+          this.addingInterval = this.maxAddingInterval;
+        },
+        reconstructMethods: function () {
+          this.render = this.render.bind(this);
+        },
+        createCherries: function () {
+          for (
+            var i = 0,
+              length = Math.round(
+                (this.INIT_CHERRY_BLOSSOM_COUNT * this.width) / 1000
+              );
+            i < length;
+            i++
+          ) {
+            this.cherries.push(new CHERRY_BLOSSOM(this, true));
+          }
+        },
+        render: function () {
+          requestAnimationFrame(this.render);
+          this.context.clearRect(0, 0, this.width, this.height);
+
+          this.cherries.sort(function (cherry1, cherry2) {
+            return cherry1.z - cherry2.z;
+          });
+          for (var i = this.cherries.length - 1; i >= 0; i--) {
+            if (!this.cherries[i].render(this.context)) {
+              this.cherries.splice(i, 1);
+            }
+          }
+          if (--this.addingInterval == 0) {
+            this.addingInterval = this.maxAddingInterval;
+            this.cherries.push(new CHERRY_BLOSSOM(this, false));
+          }
+        },
+      };
+
+      var CHERRY_BLOSSOM = function (renderer, isRandom) {
+        this.renderer = renderer;
+        this.init(isRandom);
+      };
+
+      CHERRY_BLOSSOM.prototype = {
+        FOCUS_POSITION: 300,
+        FAR_LIMIT: 600,
+        MAX_RIPPLE_COUNT: 100,
+        RIPPLE_RADIUS: 100,
+        SURFACE_RATE: 0.5,
+        SINK_OFFSET: 20,
+
+        init: function (isRandom) {
+          this.x = this.getRandomValue( -this.renderer.width, this.renderer.width);
+          this.y = isRandom ? this.getRandomValue(0, this.renderer.height) : this.renderer.height * 1.5;
+          this.z = this.getRandomValue(0, this.FAR_LIMIT);
+          this.vx = this.getRandomValue(-2, 2);
+          this.vy = -2;
+          this.theta = this.getRandomValue(0, Math.PI * 2);
+          this.phi = this.getRandomValue(0, Math.PI * 2);
+          this.psi = 0;
+          this.dpsi = this.getRandomValue(Math.PI / 600, Math.PI / 300);
+          this.opacity = 0;
+          this.endTheta = false;
+          this.endPhi = false;
+          this.rippleCount = 0;
+
+          var axis = this.getAxis(),
+            theta =
+              this.theta +
+              (Math.ceil(
+                -(this.y + this.renderer.height * this.SURFACE_RATE) / this.vy
+              ) *
+                Math.PI) /
+                500;
+          theta %= Math.PI * 2;
+
+          this.offsetY =
+            40 * (theta <= Math.PI / 2 || theta >= (Math.PI * 3) / 2 ? -1 : 1);
+          this.thresholdY =
+            this.renderer.height / 2 +
+            this.renderer.height * this.SURFACE_RATE * axis.rate;
+          this.entityColor = this.renderer.context.createRadialGradient(0,40,0,0,40,80);
+          this.entityColor.addColorStop(0,"hsl(330, 70%, " + 50 * (0.3 + axis.rate) + "%)");
+          this.entityColor.addColorStop(0.05,"hsl(330, 40%," + 55 * (0.3 + axis.rate) + "%)");
+          this.entityColor.addColorStop(1,"hsl(330, 20%, " + 70 * (0.3 + axis.rate) + "%)");
+          this.shadowColor = this.renderer.context.createRadialGradient(0,40,0,0,40,80);
+          this.shadowColor.addColorStop(0,"hsl(330, 40%, " + 30 * (0.3 + axis.rate) + "%)");
+          this.shadowColor.addColorStop(
+            0.05,
+            "hsl(330, 40%," + 30 * (0.3 + axis.rate) + "%)"
+          );
+          this.shadowColor.addColorStop(
+            1,
+            "hsl(330, 20%, " + 40 * (0.3 + axis.rate) + "%)"
+          );
+        },
+        getRandomValue: function (min, max) {
+          return min + (max - min) * Math.random();
+        },
+        getAxis: function () {
+          var rate = this.FOCUS_POSITION / (this.z + this.FOCUS_POSITION),
+            x = this.renderer.width / 2 + this.x * rate,
+            y = this.renderer.height / 2 - this.y * rate;
+          return { rate: rate, x: x, y: y };
+        },
+        renderCherry: function (context, axis) {
+          context.beginPath();
+          context.moveTo(0, 40);
+          context.bezierCurveTo(-60, 20, -10, -60, 0, -20);
+          context.bezierCurveTo(10, -60, 60, 20, 0, 40);
+          context.fill();
+
+          for (var i = -4; i < 4; i++) {
+            context.beginPath();
+            context.moveTo(0, 40);
+            context.quadraticCurveTo(i * 12, 10, i * 4, -24 + Math.abs(i) * 2);
+            context.stroke();
+          }
+        },
+        render: function (context) {
+          var axis = this.getAxis();
+
+          if (
+            axis.y == this.thresholdY &&
+            this.rippleCount < this.MAX_RIPPLE_COUNT
+          ) {
+            context.save();
+            context.lineWidth = 2;
+            context.strokeStyle =
+              "hsla(0, 0%, 100%, " +
+              (this.MAX_RIPPLE_COUNT - this.rippleCount) /
+                this.MAX_RIPPLE_COUNT +
+              ")";
+            context.translate(
+              axis.x +
+                this.offsetY * axis.rate * (this.theta <= Math.PI ? -1 : 1),
+              axis.y
+            );
+            context.scale(1, 0.3);
+            context.beginPath();
+            context.arc( 0,0,
+              (this.rippleCount / this.MAX_RIPPLE_COUNT) *
+                this.RIPPLE_RADIUS *
+                axis.rate,
+              0,
+              Math.PI * 2,
+              false
+            );
+            context.stroke();
+            context.restore();
+            this.rippleCount++;
+          }
+          if (axis.y < this.thresholdY || !this.endTheta || !this.endPhi) {
+            if (this.y <= 0) {
+              this.opacity = Math.min(this.opacity + 0.01, 1);
+            }
+            context.save();
+            context.globalAlpha = this.opacity;
+            context.fillStyle = this.shadowColor;
+            context.strokeStyle =
+              "hsl(330, 30%," + 40 * (0.3 + axis.rate) + "%)";
+            context.translate(
+              axis.x,
+              Math.max(axis.y, this.thresholdY + this.thresholdY - axis.y)
+            );
+            context.rotate(Math.PI - this.theta);
+            context.scale(axis.rate * -Math.sin(this.phi), axis.rate);
+            context.translate(0, this.offsetY);
+            this.renderCherry(context, axis);
+            context.restore();
+          }
+          context.save();
+          context.fillStyle = this.entityColor;
+          context.strokeStyle = "hsl(330, 40%," + 70 * (0.3 + axis.rate) + "%)";
+          context.translate(
+            axis.x,
+            axis.y + Math.abs(this.SINK_OFFSET * Math.sin(this.psi) * axis.rate)
+          );
+          context.rotate(this.theta);
+          context.scale(axis.rate * Math.sin(this.phi), axis.rate);
+          context.translate(0, this.offsetY);
+          this.renderCherry(context, axis);
+          context.restore();
+
+          if (this.y <= -this.renderer.height / 4) {
+            if (!this.endTheta) {
+              for (
+                var theta = Math.PI / 2, end = (Math.PI * 3) / 2;
+                theta <= end;
+                theta += Math.PI
+              ) {
+                if (this.theta < theta && this.theta + Math.PI / 200 > theta) {
+                  this.theta = theta;
+                  this.endTheta = true;
+                  break;
+                }
+              }
+            }
+            if (!this.endPhi) {
+              for (
+                var phi = Math.PI / 8, end = (Math.PI * 7) / 8;
+                phi <= end;
+                phi += (Math.PI * 3) / 4
+              ) {
+                if (this.phi < phi && this.phi + Math.PI / 200 > phi) {
+                  this.phi = Math.PI / 8;
+                  this.endPhi = true;
+                  break;
+                }
+              }
+            }
+          }
+          if (!this.endTheta) {
+            if (axis.y == this.thresholdY) {
+              this.theta +=
+                (Math.PI / 200) *
+                (this.theta < Math.PI / 2 ||
+                (this.theta >= Math.PI && this.theta < (Math.PI * 3) / 2)
+                  ? 1
+                  : -1);
+            } else {
+              this.theta += Math.PI / 500;
+            }
+            this.theta %= Math.PI * 2;
+          }
+          if (this.endPhi) {
+            if (this.rippleCount == this.MAX_RIPPLE_COUNT) {
+              this.psi += this.dpsi;
+              this.psi %= Math.PI * 2;
+            }
+          } else {
+            this.phi += Math.PI / (axis.y == this.thresholdY ? 200 : 500);
+            this.phi %= Math.PI;
+          }
+          if (this.y <= -this.renderer.height * this.SURFACE_RATE) {
+            this.x += 2;
+            this.y = -this.renderer.height * this.SURFACE_RATE;
+          } else {
+            this.x += this.vx;
+            this.y += this.vy;
+          }
+          return (
+            this.z > -this.FOCUS_POSITION &&
+            this.z < this.FAR_LIMIT &&
+            this.x < this.renderer.width * 1.5
+          );
+        },
+      };
+
+      // 3D相册代码
+      const imgWrap = document.getElementById("imgwrap");
+      const imgList = [
+        "01.jpg", "02.jpg", "03.jpg", "04.jpg", "05.jpg", "06.jpg",
+        "07.jpg", "08.jpg", "09.jpg", "10.jpg", "11.jpg", "12.jpg",
+        "13.jpg", "14.png", "15.jpg", "16.jpg", "17.jpg", "18.jpg",
+        "19.jpg", "20.jpg", "21.jpg", "22.jpg", "23.jpg", "24.jpg",
+        "25.jpg", "26.jpg", "27.jpg", "28.jpg", "29.jpg", "30.jpg"
+      ];
+
+      const layerOffsets = [
+        { class: "f1", y: 0, angleOffset: 0 },
+        { class: "f2", y: 250, angleOffset: 60 },  // 调整角度偏移
+        { class: "f3", y: 500, angleOffset: 120 }  // 调整角度偏移
+      ];
+
+      // 图片加载检查函数
+      function checkImageExists(src, callback) {
+        const img = new Image();
+        img.onload = function() {
+          callback(true);
+        };
+        img.onerror = function() {
+          callback(false);
+        };
+        img.src = src;
+      }
+
+      // 创建所有图片
+      layerOffsets.forEach(({ class: cls, y, angleOffset }) => {
+        imgList.forEach((src) => {
+          const img = document.createElement("img");
+          const imgPath = "./img/" + src;  // 修改图片路径
+          
+          checkImageExists(imgPath, function(exists) {
+            if (exists) {
+              img.src = imgPath;
+            } else {
+              // 如果图片不存在，使用默认图片
+              img.src = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='150' height='250' viewBox='0 0 150 250'%3E%3Crect width='150' height='250' fill='%23333'/%3E%3Ctext x='50%25' y='50%25' dominant-baseline='middle' text-anchor='middle' fill='white' font-family='Arial' font-size='14'%3E图片加载失败%3C/text%3E%3C/svg%3E";
+            }
+          });
+          
+          img.className = cls;
+          img.alt = "相册图片";  // 添加alt属性
+          imgWrap.appendChild(img);
+        });
+      });
+
+      // 设置角度和偏移
+      window.onload = function () {
+        const len = imgList.length;
+        const deg = 360 / len;
+
+        layerOffsets.forEach(({ class: cls, y, angleOffset }) => {
+          const imgs = document.getElementsByClassName(cls);
+          Array.from(imgs).forEach((img, i) => {
+            const angle = deg * i + angleOffset;
+            img.style.transform = `rotateY(${angle}deg) translateZ(700px) translateY(${y}px)`;  // 调整距离
+            img.style.transition = `1s ${(len - i) * 0.03}s`;  // 调整过渡时间
+          });
+        });
+
+        // 初始化樱花效果
+        RENDERER.init();
+      };
+
+      // 鼠标旋转控制
+      let rotX = -20, rotY = 0;
+      let isDragging = false;
+      let lastX = 0, lastY = 0;
+
+      document.onmousedown = function (e) {
+        isDragging = true;
+        lastX = e.clientX;
+        lastY = e.clientY;
+      };
+
+      document.onmousemove = function (e) {
+        if (!isDragging) return;
+        
+        const deltaX = e.clientX - lastX;
+        const deltaY = e.clientY - lastY;
+
+        rotX -= deltaY * 0.15;  // 降低旋转速度
+        rotY += deltaX * 0.15;  // 降低旋转速度
+
+        // 限制旋转角度
+        rotX = Math.max(-60, Math.min(20, rotX));
+
+        imgWrap.style.transform = `rotateX(${rotX}deg) rotateY(${rotY}deg)`;
+
+        lastX = e.clientX;
+        lastY = e.clientY;
+      };
+
+      document.onmouseup = function () {
+        isDragging = false;
+      };
+
+      // 添加自动旋转效果
+      let autoRotate = true;
+      let autoRotateSpeed = 0.2;
+
+      function animate() {
+        if (autoRotate) {
+          rotY += autoRotateSpeed;
+          imgWrap.style.transform = `rotateX(${rotX}deg) rotateY(${rotY}deg)`;
+        }
+        requestAnimationFrame(animate);
+      }
+
+      animate();
+
+      // 点击切换自动旋转
+      document.addEventListener('click', function() {
+        autoRotate = !autoRotate;
+      });
+    </script>
+  </body>
+</html>
